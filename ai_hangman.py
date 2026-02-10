@@ -428,7 +428,7 @@ def main():
     if "target_word" not in st.session_state:
         init_game()
 
-    api_key = os.environ.get("OPENAI_API_KEY", "")
+    api_key = os.environ.get("OPENAI_API_KEY", "") or st.session_state.get("user_api_key", "")
 
     # ── Sidebar ──────────────────────────────
     with st.sidebar:
@@ -589,20 +589,14 @@ def main():
                     st.warning("Please enter a valid letter.")
 
         # ── AI Hint Button ───────────────────
-        st.divider()
-        hint_col1, hint_col2 = st.columns([1, 3])
-        with hint_col1:
-            hint_disabled = not bool(api_key)
-            if st.button("🤖 Get AI Hint", disabled=hint_disabled):
+        if api_key:
+            st.divider()
+            if st.button("🤖 Get AI Hint"):
                 with st.spinner("Thinking..."):
                     st.session_state.ai_hint = get_ai_hint(api_key)
 
-        if not api_key:
-            with hint_col2:
-                st.caption("⚠️ Set OPENAI_API_KEY env variable to enable AI hints")
-
-        if st.session_state.get("ai_hint"):
-            st.info(f"💡 **AI Hint:** {st.session_state.ai_hint}")
+            if st.session_state.get("ai_hint"):
+                st.info(f"💡 **AI Hint:** {st.session_state.ai_hint}")
 
     else:
         # ── Game Over Display ────────────────
@@ -636,6 +630,22 @@ def main():
     )
     if incorrect_letters:
         st.markdown("**Incorrect Guesses:** " + ", ".join(incorrect_letters))
+
+    # ── API Key Input (only if env var not set) ──
+    if not os.environ.get("OPENAI_API_KEY"):
+        st.divider()
+        with st.expander("🔑 OpenAI API Key", expanded=not bool(api_key)):
+            st.caption("Your key is stored only in memory and never saved.")
+            key_input = st.text_input(
+                "Paste your API key to enable AI features:",
+                type="password",
+                placeholder="sk-...",
+                value=st.session_state.get("user_api_key", ""),
+                key="api_key_input",
+            )
+            if key_input != st.session_state.get("user_api_key", ""):
+                st.session_state.user_api_key = key_input
+                st.rerun()
 
 
 if __name__ == "__main__":
