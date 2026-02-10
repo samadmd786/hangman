@@ -17,6 +17,8 @@ A classic Hangman game enhanced with OpenAI-powered features, built with Streaml
 
 - Python 3.8+
 - OpenAI API key (optional — game works without it, AI features are disabled)
+  - Get one at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+  - You can either set the `OPENAI_API_KEY` environment variable or paste it directly in the app's 🔑 input
 
 ### Installation
 
@@ -43,7 +45,7 @@ streamlit run ai_hangman.py
 ### Running on Streamlit Cloud
 
 1. Deploy the app from this repo
-2. Paste your OpenAI API key in the 🔑 input at the bottom of the app (stored in memory only, never saved)
+2. Paste your OpenAI API key in the 🔑 input in the sidebar (stored in memory only, never saved)
 
 ## 📁 Project Structure
 

@@ -5,9 +5,7 @@ import os
 import math
 from openai import OpenAI
 
-# ─────────────────────────────────────────────
 # Constants & Config
-# ─────────────────────────────────────────────
 
 WORD_LIST = {
     "easy": [
@@ -36,9 +34,7 @@ DIFFICULTY_CONFIG = {
 }
 
 
-# ─────────────────────────────────────────────
 # SVG Animated Hangman
-# ─────────────────────────────────────────────
 
 def get_hangman_svg(wrong_guesses, max_attempts):
     """Generate an SVG hangman with CSS fade-in animations."""
@@ -112,9 +108,7 @@ def get_hangman_svg(wrong_guesses, max_attempts):
     return svg
 
 
-# ─────────────────────────────────────────────
 # Game Logic
-# ─────────────────────────────────────────────
 
 def init_stats():
     """Initialize score tracking if not present."""
@@ -185,6 +179,8 @@ def init_game():
     st.session_state.feedback = "Game started! Guess a letter."
     st.session_state.ai_hint = ""
     st.session_state.post_game_analysis = ""
+    st.session_state.balloons_shown = False
+    st.session_state.snow_shown = False
 
 
 def check_guess(letter):
@@ -233,9 +229,7 @@ def check_win_loss():
         st.session_state.current_streak = 0
 
 
-# ─────────────────────────────────────────────
 # Win Probability Calculation
-# ─────────────────────────────────────────────
 
 def get_candidate_words():
     """Return words from WORD_LIST that still match the current game state."""
@@ -272,49 +266,58 @@ def get_candidate_words():
     return candidates
 
 
+def _hypergeometric_prob(needed, pool_size, remaining):
+    """Probability of drawing all *needed* letters within *remaining* attempts
+    from a pool of *pool_size* un-guessed letters (hypergeometric model)."""
+    if needed == 0:
+        return 1.0
+    wrong_in_pool = pool_size - needed
+    max_wrong = remaining  # correct guesses don't cost attempts
+    if max_wrong < 0:
+        return 0.0
+
+    p = 0.0
+    for w in range(max_wrong + 1):
+        draws = needed + w
+        if draws > pool_size:
+            break
+        log_p = (
+            _log_comb(wrong_in_pool, w)
+            + _log_comb(needed, needed)
+            - _log_comb(pool_size, draws)
+        )
+        p += math.exp(log_p)
+    return min(p, 1.0)
+
+
 def calculate_win_probability():
     """Estimate probability of winning using a hypergeometric model."""
     if st.session_state.game_over:
         return 1.0 if st.session_state.game_result == "win" else 0.0
 
-    candidates = get_candidate_words()
-    if not candidates:
-        return 0.0
-
     guessed = st.session_state.guessed_letters
     remaining = st.session_state.remaining_attempts
+    target = st.session_state.target_word
 
     all_letters = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
     pool_size = len(all_letters - guessed)
 
     if pool_size == 0:
+        # All letters guessed; already handled by check_win_loss
         return 1.0
+
+    candidates = get_candidate_words()
+
+    # If the word is AI-generated it won't appear in WORD_LIST, so
+    # candidates may be empty. Fall back to the actual target word.
+    if not candidates:
+        needed = len(set(target) - guessed)
+        return _hypergeometric_prob(needed, pool_size, remaining)
 
     total_prob = 0.0
     for word in candidates:
         needed = len(set(word) - guessed)
-        if needed == 0:
-            total_prob += 1.0
-            continue
-
-        wrong_in_pool = pool_size - needed
-        max_wrong = remaining - needed
-        if max_wrong < 0:
-            continue
-
-        p_word = 0.0
-        for w in range(max_wrong + 1):
-            draws = needed + w
-            if draws > pool_size:
-                break
-            log_p = (
-                _log_comb(wrong_in_pool, w)
-                + _log_comb(needed, needed)
-                - _log_comb(pool_size, draws)
-            )
-            p_word += math.exp(log_p)
-
-        total_prob += min(p_word, 1.0)
+        total_prob += _hypergeometric_prob(needed, pool_size, remaining)
 
     return total_prob / len(candidates)
 
@@ -326,9 +329,7 @@ def _log_comb(n, k):
     return math.lgamma(n + 1) - math.lgamma(k + 1) - math.lgamma(n - k + 1)
 
 
-# ─────────────────────────────────────────────
 # OpenAI: Hints & Post-Game Analysis
-# ─────────────────────────────────────────────
 
 def get_ai_hint(api_key: str):
     """Ask OpenAI for a cryptic hint about the target word."""
@@ -413,12 +414,10 @@ def get_post_game_analysis(api_key: str):
         return f"⚠️ Error getting analysis: {e}"
 
 
-# ─────────────────────────────────────────────
 # Main Streamlit App
-# ─────────────────────────────────────────────
 
 def main():
-    st.set_page_config(page_title="AI Hangman", page_icon="🤖", layout="centered")
+    st.set_page_config(page_title="AI Hangman", page_icon="🤖", layout="wide")
 
     st.title("🤖 AI-Powered Hangman")
     st.markdown("Guess the hidden word — with AI hints, live win probability & more!")
@@ -439,67 +438,44 @@ def main():
     else:
         api_key = ""
 
-    # ── Sidebar ──────────────────────────────
+    # Sidebar (compact)
     with st.sidebar:
 
-        # ── Difficulty ───────────────────────
-        st.header("🎮 Difficulty")
+        # Difficulty + New Game
         current_diff = st.session_state.get("difficulty", "Medium 🟡")
-        difficulty = st.radio(
-            "Select difficulty:",
+        difficulty = st.selectbox(
+            "Difficulty",
             list(DIFFICULTY_CONFIG.keys()),
             index=list(DIFFICULTY_CONFIG.keys()).index(current_diff),
             key="difficulty_radio",
             help="Changes take effect on New Game",
         )
         config = DIFFICULTY_CONFIG[difficulty]
-        st.caption(f"_{config['label']}_")
-
-        # If difficulty changed, store it
         if difficulty != st.session_state.get("difficulty"):
             st.session_state.difficulty = difficulty
 
-        st.divider()
-
-        # ── Game Controls ────────────────────
-        st.header("📊 Game Status")
         if st.button("🔄 New Game", use_container_width=True):
             st.session_state.difficulty = difficulty
             init_game()
             st.rerun()
 
+        st.divider()
+
+        # Attempts + Probability (compact)
         max_att = st.session_state.get("max_attempts", 6)
-        st.write(f"**Attempts Remaining:** {st.session_state.remaining_attempts} / {max_att}")
+        st.write(f"**Attempts:** {st.session_state.remaining_attempts} / {max_att}")
         if st.session_state.get("word_source"):
             st.caption(f"Word source: {st.session_state.word_source}")
 
-        # ── Win Probability ──────────────────
         prob = calculate_win_probability()
         prob_pct = prob * 100
 
-        st.divider()
-        st.subheader("🎯 Win Probability")
-
         if prob_pct >= 70:
             bar_color = "#28a745"
-            bg_color = "rgba(40, 167, 69, 0.15)"
-            border_color = "rgba(40, 167, 69, 0.4)"
-            label = f"Looking good! {prob_pct:.0f}%"
         elif prob_pct >= 40:
             bar_color = "#ffa500"
-            bg_color = "rgba(255, 165, 0, 0.15)"
-            border_color = "rgba(255, 165, 0, 0.4)"
-            label = f"Getting tricky — {prob_pct:.0f}%"
-        elif prob_pct > 0:
-            bar_color = "#dc3545"
-            bg_color = "rgba(220, 53, 69, 0.15)"
-            border_color = "rgba(220, 53, 69, 0.4)"
-            label = f"Danger zone! {prob_pct:.0f}%"
         else:
             bar_color = "#dc3545"
-            bg_color = "rgba(220, 53, 69, 0.15)"
-            border_color = "rgba(220, 53, 69, 0.4)"
-            label = "Very low!" if not st.session_state.game_over else "Game over"
 
         st.markdown(f"""
         <style>
@@ -508,160 +484,28 @@ def main():
             }}
         </style>
         """, unsafe_allow_html=True)
+        st.progress(prob, text=f"🎯 Win: {prob_pct:.0f}%")
 
-        st.progress(prob, text=f"{prob_pct:.0f}%")
-
-        st.markdown(f"""
-        <div style="
-            padding: 10px 14px; border-radius: 8px;
-            background-color: {bg_color}; border: 1px solid {border_color};
-            color: {bar_color}; font-weight: 600; font-size: 14px; margin-top: 4px;
-        ">{label}</div>
-        """, unsafe_allow_html=True)
-
-        # ── Score & Streak Tracker ───────────
         st.divider()
-        st.subheader("🏆 Score")
 
-        col_w, col_l = st.columns(2)
-        with col_w:
-            st.metric("Wins", st.session_state.wins)
-        with col_l:
-            st.metric("Losses", st.session_state.losses)
-
-        streak = st.session_state.current_streak
-        best = st.session_state.best_streak
-        streak_emoji = "🔥" if streak >= 3 else "⚡" if streak >= 1 else ""
-
-        st.markdown(f"""
-        <div style="
-            padding: 10px 14px; border-radius: 8px;
-            background: linear-gradient(135deg, rgba(255,107,53,0.15), rgba(255,165,0,0.15));
-            border: 1px solid rgba(255,140,0,0.3);
-            font-size: 14px; margin-top: 8px;
-        ">
-            <span style="font-weight:600;">Current Streak:</span> {streak} {streak_emoji}<br>
-            <span style="font-weight:600;">Best Streak:</span> {best} 👑
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.caption(f"Total games: {st.session_state.total_games}")
-
-    # ── Main Display ─────────────────────────
-    max_att = st.session_state.get("max_attempts", 6)
-    wrong_guesses = max_att - st.session_state.remaining_attempts
-
-    # Animated SVG Hangman
-    components.html(
-        get_hangman_svg(wrong_guesses, max_att),
-        height=240,
-    )
-
-    # Display the word
-    display_word = " ".join(
-        letter if letter in st.session_state.guessed_letters else "_"
-        for letter in st.session_state.target_word
-    )
-    st.markdown(
-        f"<h1 style='text-align:center; letter-spacing:5px; font-family:monospace;'>"
-        f"{display_word}</h1>",
-        unsafe_allow_html=True,
-    )
-
-    # Feedback
-    if st.session_state.feedback:
-        if "Correct" in st.session_state.feedback or "won" in st.session_state.feedback:
-            st.success(st.session_state.feedback)
-        elif "Sorry" in st.session_state.feedback or "Game Over" in st.session_state.feedback:
-            st.error(st.session_state.feedback)
-        else:
-            st.info(st.session_state.feedback)
-
-    # ── Input / Game Over ────────────────────
-    if not st.session_state.game_over:
-        with st.form(key="guess_form", clear_on_submit=True):
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                guess_input = st.text_input(
-                    "Enter a letter:", max_chars=1, key="input_letter"
-                )
-            with col2:
-                st.write("")
-                st.write("")
-                submit_button = st.form_submit_button(label="Guess")
-
-            if submit_button and guess_input:
-                if guess_input.isalpha():
-                    check_guess(guess_input)
-                    st.rerun()
-                else:
-                    st.warning("Please enter a valid letter.")
-
-        # ── AI Hint Button ───────────────────
+        # API Key (compact)
         if api_key:
-            st.divider()
-            if st.button("🤖 Get AI Hint"):
-                with st.spinner("Thinking..."):
-                    st.session_state.ai_hint = get_ai_hint(api_key)
-
-            if st.session_state.get("ai_hint"):
-                st.info(f"💡 **AI Hint:** {st.session_state.ai_hint}")
-
-    else:
-        # ── Game Over Display ────────────────
-        if st.session_state.game_result == "win":
-            st.balloons()
-            st.markdown("### 🎉 Amazing! You guessed the word!")
+            source = "environment" if (env_key and not env_disabled and not user_key) else "manual"
+            st.markdown(f"**🔑** ✅ Connected ({source})")
+            if st.button("🗑 Remove Key", use_container_width=True):
+                st.session_state.user_api_key = ""
+                st.session_state.env_key_disabled = True
+                st.rerun()
         else:
-            st.markdown(
-                f"### 😔 Better luck next time! The word was **{st.session_state.target_word}**."
+            st.markdown("**🔑 OpenAI API Key**")
+            st.caption(
+                "Get a key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)"
             )
-
-        # ── Post-Game AI Analysis ────────────
-        if api_key:
-            if not st.session_state.get("post_game_analysis"):
-                with st.spinner("🧠 Generating post-game analysis..."):
-                    st.session_state.post_game_analysis = get_post_game_analysis(api_key)
-
-            if st.session_state.post_game_analysis:
-                with st.expander("🧠 Post-Game AI Analysis", expanded=True):
-                    st.markdown(st.session_state.post_game_analysis)
-
-        st.markdown("**Would you like to play again?**")
-        if st.button("🔄 Play Again", use_container_width=True):
-            init_game()
-            st.rerun()
-
-    # Incorrect guesses
-    incorrect_letters = sorted(
-        l for l in st.session_state.guessed_letters
-        if l not in st.session_state.target_word
-    )
-    if incorrect_letters:
-        st.markdown("**Incorrect Guesses:** " + ", ".join(incorrect_letters))
-
-    # ── API Key Management ───────────────
-    st.divider()
-    if api_key:
-        # ── Key is active: show status + manage buttons ──
-        source = "environment" if (env_key and not env_disabled and not user_key) else "manual"
-        st.markdown(f"**🔑 API Key:** ✅ Connected ({source})")
-        if st.button("🗑 Remove Key", use_container_width=True):
-            st.session_state.user_api_key = ""
-            st.session_state.env_key_disabled = True
-            st.rerun()
-    else:
-        # ── No key: show input + Enter button ──
-        st.markdown("**🔑 Enter OpenAI API Key**")
-        st.caption("Your key is stored only in memory and never saved.")
-        key_col, btn_col = st.columns([3, 1])
-        with key_col:
             key_input = st.text_input(
                 "API Key", type="password", placeholder="sk-...",
                 label_visibility="collapsed", key="api_key_input",
             )
-        with btn_col:
-            if st.button("Enter", use_container_width=True):
+            if st.button("Enter Key", use_container_width=True):
                 if key_input:
                     st.session_state.user_api_key = key_input
                     st.session_state.env_key_disabled = False
@@ -669,11 +513,113 @@ def main():
                 else:
                     st.toast("Please paste a key first")
 
-        # If env key exists but was disabled, offer to restore it
-        if env_key and env_disabled:
-            if st.button("� Use environment key instead", use_container_width=True):
-                st.session_state.env_key_disabled = False
+            if env_key and env_disabled:
+                if st.button("🔁 Use env key", use_container_width=True):
+                    st.session_state.env_key_disabled = False
+                    st.rerun()
+
+    # Main Display: two-column layout
+    max_att = st.session_state.get("max_attempts", 6)
+    wrong_guesses = max_att - st.session_state.remaining_attempts
+
+    col_hangman, col_game = st.columns([1, 1], gap="large")
+
+    with col_hangman:
+        components.html(
+            get_hangman_svg(wrong_guesses, max_att),
+            height=240,
+        )
+
+        incorrect_letters = sorted(
+            l for l in st.session_state.guessed_letters
+            if l not in st.session_state.target_word
+        )
+        if incorrect_letters:
+            st.markdown("**Incorrect Guesses:** " + ", ".join(incorrect_letters))
+
+    with col_game:
+        display_word = " ".join(
+            letter if letter in st.session_state.guessed_letters else "_"
+            for letter in st.session_state.target_word
+        )
+        st.markdown(
+            f"<h2 style='text-align:center; letter-spacing:5px; font-family:monospace;'>"
+            f"{display_word}</h2>",
+            unsafe_allow_html=True,
+        )
+
+        if st.session_state.feedback:
+            if "Correct" in st.session_state.feedback or "won" in st.session_state.feedback:
+                st.success(st.session_state.feedback)
+            elif "Sorry" in st.session_state.feedback or "Game Over" in st.session_state.feedback:
+                st.error(st.session_state.feedback)
+            else:
+                st.info(st.session_state.feedback)
+
+        if not st.session_state.game_over:
+            with st.form(key="guess_form", clear_on_submit=True):
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    guess_input = st.text_input(
+                        "Enter a letter:", max_chars=1, key="input_letter"
+                    )
+                with col2:
+                    st.write("")
+                    st.write("")
+                    submit_button = st.form_submit_button(label="Guess")
+
+                if submit_button and guess_input:
+                    if guess_input.isalpha():
+                        check_guess(guess_input)
+                        st.rerun()
+                    else:
+                        st.warning("Please enter a valid letter.")
+
+            if api_key:
+                if st.button("🤖 Get AI Hint"):
+                    with st.spinner("Thinking..."):
+                        st.session_state.ai_hint = get_ai_hint(api_key)
+
+                if st.session_state.get("ai_hint"):
+                    st.info(f"💡 **AI Hint:** {st.session_state.ai_hint}")
+
+        else:
+            if st.session_state.game_result == "win":
+                if not st.session_state.get("balloons_shown"):
+                    st.balloons()
+                    st.session_state.balloons_shown = True
+                st.markdown("### 🎉 Amazing! You guessed the word!")
+            else:
+                if not st.session_state.get("snow_shown"):
+                    st.snow()
+                    st.session_state.snow_shown = True
+                st.markdown(
+                    f"### 😔 Better luck next time! The word was **{st.session_state.target_word}**."
+                )
+
+            if api_key:
+                if not st.session_state.get("post_game_analysis"):
+                    with st.spinner("🧠 Generating post-game analysis..."):
+                        st.session_state.post_game_analysis = get_post_game_analysis(api_key)
+
+                if st.session_state.post_game_analysis:
+                    with st.expander("🧠 Post-Game AI Analysis", expanded=True):
+                        st.markdown(st.session_state.post_game_analysis)
+
+            if st.button("🔄 Play Again", use_container_width=True):
+                init_game()
                 st.rerun()
+
+    # Score & Streak (compact row below the game)
+    st.divider()
+    s1, s2, s3, s4 = st.columns(4)
+    streak = st.session_state.current_streak
+    best = st.session_state.best_streak
+    streak_emoji = "🔥" if streak >= 3 else "⚡" if streak >= 1 else ""
+    s1.metric("Wins", st.session_state.wins)
+    s2.metric("Losses", st.session_state.losses)
+    s3.metric(f"Streak {streak_emoji}", streak)
+    s4.metric("Best 👑", best)
 
 
 if __name__ == "__main__":
