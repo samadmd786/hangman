@@ -60,6 +60,7 @@ streamlit run ai_hangman.py
 ## 🔒 Security
 
 - API keys entered in the app are stored **only in session memory** and are never written to disk, logged, or persisted
+- All OpenAI API calls happen **server-side** in Python — your key is never exposed in browser/client-side code
 - Environment variable `OPENAI_API_KEY` is the recommended approach for local development
 
 ## 🛠 Tech Stack

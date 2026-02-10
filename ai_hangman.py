@@ -438,6 +438,23 @@ def main():
     else:
         api_key = ""
 
+    # Show a stylish banner when no API key is set
+    if not api_key:
+        st.markdown("""
+        <div style="
+            padding: 14px 20px; border-radius: 10px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(168,85,247,0.12));
+            border: 1px solid rgba(139,92,246,0.3);
+            margin-bottom: 16px; text-align: center;
+        ">
+            <span style="font-size: 15px;">
+                🔑 <strong>Enter your OpenAI API key</strong> in the sidebar to unlock
+                <strong>AI-generated words</strong>, <strong>smart hints</strong>, and
+                <strong>post-game analysis</strong>!
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+
     # Sidebar (compact)
     with st.sidebar:
 
