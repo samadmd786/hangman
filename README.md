@@ -2,6 +2,8 @@
 
 A classic Hangman game enhanced with OpenAI-powered features, built with Streamlit.
 
+🔗 **[Play it live → ai-hangman.streamlit.app](https://ai-hangman.streamlit.app/)**
+
 ## ✨ Features
 
 - **🎮 Difficulty Levels** — Easy (8 attempts), Medium (6 attempts), Hard (4 attempts) with word pools of varying lengths
