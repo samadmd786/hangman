@@ -428,7 +428,16 @@ def main():
     if "target_word" not in st.session_state:
         init_game()
 
-    api_key = os.environ.get("OPENAI_API_KEY", "") or st.session_state.get("user_api_key", "")
+    # Resolve API key: user key overrides env, env can be temporarily disabled
+    env_key = os.environ.get("OPENAI_API_KEY", "")
+    env_disabled = st.session_state.get("env_key_disabled", False)
+    user_key = st.session_state.get("user_api_key", "")
+    if user_key:
+        api_key = user_key
+    elif env_key and not env_disabled:
+        api_key = env_key
+    else:
+        api_key = ""
 
     # ── Sidebar ──────────────────────────────
     with st.sidebar:
@@ -631,20 +640,39 @@ def main():
     if incorrect_letters:
         st.markdown("**Incorrect Guesses:** " + ", ".join(incorrect_letters))
 
-    # ── API Key Input (only if env var not set) ──
-    if not os.environ.get("OPENAI_API_KEY"):
-        st.divider()
-        with st.expander("🔑 OpenAI API Key", expanded=not bool(api_key)):
-            st.caption("Your key is stored only in memory and never saved.")
+    # ── API Key Management ───────────────
+    st.divider()
+    if api_key:
+        # ── Key is active: show status + manage buttons ──
+        source = "environment" if (env_key and not env_disabled and not user_key) else "manual"
+        st.markdown(f"**🔑 API Key:** ✅ Connected ({source})")
+        if st.button("🗑 Remove Key", use_container_width=True):
+            st.session_state.user_api_key = ""
+            st.session_state.env_key_disabled = True
+            st.rerun()
+    else:
+        # ── No key: show input + Enter button ──
+        st.markdown("**🔑 Enter OpenAI API Key**")
+        st.caption("Your key is stored only in memory and never saved.")
+        key_col, btn_col = st.columns([3, 1])
+        with key_col:
             key_input = st.text_input(
-                "Paste your API key to enable AI features:",
-                type="password",
-                placeholder="sk-...",
-                value=st.session_state.get("user_api_key", ""),
-                key="api_key_input",
+                "API Key", type="password", placeholder="sk-...",
+                label_visibility="collapsed", key="api_key_input",
             )
-            if key_input != st.session_state.get("user_api_key", ""):
-                st.session_state.user_api_key = key_input
+        with btn_col:
+            if st.button("Enter", use_container_width=True):
+                if key_input:
+                    st.session_state.user_api_key = key_input
+                    st.session_state.env_key_disabled = False
+                    st.rerun()
+                else:
+                    st.toast("Please paste a key first")
+
+        # If env key exists but was disabled, offer to restore it
+        if env_key and env_disabled:
+            if st.button("� Use environment key instead", use_container_width=True):
+                st.session_state.env_key_disabled = False
                 st.rerun()
 
 
