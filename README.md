@@ -50,20 +50,20 @@ pip install -r requirements.txt
 ### Running Locally
 
 ```bash
-# Without AI features (works out of the box)
 streamlit run ai_hangman.py
-
-# With AI features — option 1: secrets file (recommended)
-# Create/edit .streamlit/secrets.toml and add:  OPENAI_API_KEY = "sk-..."
-streamlit run ai_hangman.py
-
-# With AI features — option 2: environment variable
-export OPENAI_API_KEY=your-api-key-here
-streamlit run ai_hangman.py
-
-# With AI features — option 3: paste in the app
-# Just run the app and enter your key in the sidebar 🔑 input
 ```
+
+To enable AI features, provide your OpenAI API key using **any** of these methods:
+
+1. **Secrets file** *(recommended)* — create `.streamlit/secrets.toml` and add:
+   ```toml
+   OPENAI_API_KEY = "sk-..."
+   ```
+2. **Environment variable:**
+   ```bash
+   export OPENAI_API_KEY=your-api-key-here
+   ```
+3. **In the app** — paste your key in the sidebar 🔑 input at runtime
 
 ### Deploying on Streamlit Cloud
 
@@ -115,7 +115,3 @@ The probability bar is color-coded: 🟢 ≥ 70% → 🟠 ≥ 40% → 🔴 < 40%
 - **Language:** Python 3.8+
 - **Visualization:** Inline SVG with CSS keyframe animations
 - **Math:** Hypergeometric probability model (`math.lgamma`)
-
-## 📜 License
-
-This project is open source. Feel free to fork, modify, and share.
