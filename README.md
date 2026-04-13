@@ -9,16 +9,16 @@ A classic Hangman word-guessing game supercharged with **OpenAI GPT-4o-mini** �
 
 | Feature | Description |
 |---------|-------------|
-| 🎮 **3 Difficulty Levels** | Easy (8 attempts), Medium (6), Hard (4) — with scaled word lengths |
-| 🤖 **AI Word Generation** | GPT generates fresh, unique words every round — no repeating word lists |
-| 💡 **AI Hints** | Cryptic, context-aware one-liner hints that nudge without spoiling |
-| 🎯 **Live Win Probability** | Real-time gauge using a hypergeometric probability model, color-coded green → red |
-| 🧠 **Post-Game Analysis** | AI-generated word insight, strategy review, and fun facts after every game |
-| 🏆 **Score & Streak Tracker** | Wins, losses, current streak 🔥, and best streak 👑 across sessions |
-| 🎨 **Animated SVG Hangman** | Smooth CSS fade-in body parts replace traditional ASCII art |
-| 📋 **Offline Fallback** | No API key? The game still works with a curated built-in word list |
+| **3 Difficulty Levels** | Easy (8 attempts), Medium (6), Hard (4) — with scaled word lengths |
+| **AI Word Generation** | GPT generates fresh, unique words every round — no repeating word lists |
+| **AI Hints** | Cryptic, context-aware one-liner hints that nudge without spoiling |
+| **Live Win Probability** | Real-time gauge using a hypergeometric probability model, color-coded green → red |
+| **Post-Game Analysis** | AI-generated word insight, strategy review, and fun facts after every game |
+| **Score & Streak Tracker** | Wins, losses, current streak 🔥, and best streak 👑 across sessions |
+| **Animated SVG Hangman** | Smooth CSS fade-in body parts replace traditional ASCII art |
+| **Offline Fallback** | No API key? The game still works with a curated built-in word list |
 
-## 🎮 How to Play
+## How to Play
 
 1. **Pick a difficulty** in the sidebar — this sets word length and number of allowed mistakes
 2. **Guess one letter at a time** using the input field
@@ -28,7 +28,7 @@ A classic Hangman word-guessing game supercharged with **OpenAI GPT-4o-mini** �
 6. After each game, read the **Post-Game Analysis** for word trivia and strategy tips
 
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -78,7 +78,7 @@ To enable AI features, provide your OpenAI API key using **any** of these method
 > End users can also paste their own key in the sidebar 🔑 input (stored in session memory only, never written to disk).
 
 
-## 📁 Project Structure
+## Project Structure
 
 | File | Description |
 |------|-------------|
@@ -88,7 +88,7 @@ To enable AI features, provide your OpenAI API key using **any** of these method
 | `requirements.txt` | Python dependencies (`streamlit`, `openai`) |
 | `.gitignore` | Comprehensive Python + Streamlit gitignore |
 
-## 🔒 Security
+## Security
 
 - `.streamlit/secrets.toml` is **gitignored** — your API key is never committed to the repo
 - On Streamlit Cloud, secrets are stored securely via the dashboard and injected at runtime
@@ -96,7 +96,7 @@ To enable AI features, provide your OpenAI API key using **any** of these method
 - All OpenAI API calls happen **server-side** in Python — your key is never exposed in browser/client-side code
 - Key resolution priority: manual sidebar input → `st.secrets` → `OPENAI_API_KEY` env var
 
-## 🧮 How Win Probability Works
+## How Win Probability Works
 
 The app calculates a **live win probability** after every guess using a [hypergeometric distribution](https://en.wikipedia.org/wiki/Hypergeometric_distribution):
 
