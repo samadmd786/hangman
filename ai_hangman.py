@@ -1,6 +1,6 @@
 """AI-Powered Hangman Game.
 
-A Streamlit-based Hangman game enhanced with OpenAI-powered features
+A Streamlit-based Hangman game enhanced with Groq-powered features
 including AI-generated words, smart hints, live win probability, and
 post-game analysis.
 """
@@ -130,19 +130,19 @@ def init_stats():
 
 
 def _get_secrets_key():
-    """Retrieve the OpenAI API key from st.secrets (if available).
+    """Retrieve the Groq API key from st.secrets (if available).
 
     Returns:
         str: The API key from st.secrets, or an empty string.
     """
     try:
-        return st.secrets.get("OPENAI_API_KEY", "")
+        return st.secrets.get("GROQ_API_KEY", "")
     except Exception:
         return ""
 
 
 def generate_word_from_ai(difficulty_key):
-    """Ask OpenAI to generate a word matching the given difficulty.
+    """Ask Groq to generate a word matching the given difficulty.
 
     Parameters:
         difficulty_key (str): One of 'easy', 'medium', or 'hard'.
@@ -150,7 +150,7 @@ def generate_word_from_ai(difficulty_key):
     Returns:
         str or None: An uppercase word if successful, None otherwise.
     """
-    api_key = _get_secrets_key() or os.environ.get("OPENAI_API_KEY", "")
+    api_key = _get_secrets_key() or os.environ.get("GROQ_API_KEY", "")
     if not api_key:
         return None
 
@@ -158,9 +158,9 @@ def generate_word_from_ai(difficulty_key):
     target_len = length_map.get(difficulty_key, "5")
 
     try:
-        client = OpenAI(api_key=api_key)
+        client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": "You are a word generator for a hangman game."},
                 {"role": "user", "content": (
@@ -417,16 +417,16 @@ def calculate_win_probability():
     return total_prob / len(candidates)
 
 
-# OpenAI: Hints & Post-Game Analysis
+# Groq: Hints & Post-Game Analysis
 
 def get_ai_hint(api_key):
-    """Ask OpenAI for a cryptic hint about the target word.
+    """Ask Groq for a cryptic hint about the target word.
 
     Constructs a prompt with the current game state and requests a
     creative, one-sentence hint that doesn't directly reveal the word.
 
     Parameters:
-        api_key (str): OpenAI API key.
+        api_key (str): Groq API key.
 
     Returns:
         str: A hint string, or an error message if the API call fails.
@@ -454,9 +454,9 @@ def get_ai_hint(api_key):
     )
 
     try:
-        client = OpenAI(api_key=api_key)
+        client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": prompt},
@@ -470,13 +470,13 @@ def get_ai_hint(api_key):
 
 
 def get_post_game_analysis(api_key):
-    """Ask OpenAI for a post-game analysis of the completed round.
+    """Ask Groq for a post-game analysis of the completed round.
 
     Provides word insight, strategy review, and a fun fact based
     on the game outcome.
 
     Parameters:
-        api_key (str): OpenAI API key.
+        api_key (str): Groq API key.
 
     Returns:
         str: Markdown-formatted analysis, or an error message on failure.
@@ -507,9 +507,9 @@ def get_post_game_analysis(api_key):
     )
 
     try:
-        client = OpenAI(api_key=api_key)
+        client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": "You are a friendly hangman game analyst. Be concise and encouraging."},
                 {"role": "user", "content": prompt},
@@ -525,7 +525,7 @@ def get_post_game_analysis(api_key):
 # UI Components
 
 def resolve_api_key():
-    """Resolve the active OpenAI API key.
+    """Resolve the active Groq API key.
 
     Priority: manually entered key > st.secrets > environment variable.
     Either automatic source can be temporarily disabled by the user.
@@ -536,7 +536,7 @@ def resolve_api_key():
     Returns:
         str: The active API key, or an empty string if none is available.
     """
-    default_key = _get_secrets_key() or os.environ.get("OPENAI_API_KEY", "")
+    default_key = _get_secrets_key() or os.environ.get("GROQ_API_KEY", "")
     env_disabled = st.session_state.get("env_key_disabled", False)
     user_key = st.session_state.get("user_api_key", "")
     if user_key:
@@ -567,7 +567,7 @@ def render_api_key_banner(api_key):
             margin-bottom: 16px; text-align: center;
         ">
             <span style="font-size: 15px;">
-                🔑 <strong>Enter your OpenAI API key</strong> in the sidebar to unlock
+                🔑 <strong>Enter your Groq API key</strong> in the sidebar to unlock
                 <strong>AI-generated words</strong>, <strong>smart hints</strong>, and
                 <strong>post-game analysis</strong>!
             </span>
@@ -587,7 +587,7 @@ def render_sidebar(api_key):
     Returns:
         None
     """
-    default_key = _get_secrets_key() or os.environ.get("OPENAI_API_KEY", "")
+    default_key = _get_secrets_key() or os.environ.get("GROQ_API_KEY", "")
     env_disabled = st.session_state.get("env_key_disabled", False)
     user_key = st.session_state.get("user_api_key", "")
 
@@ -648,9 +648,9 @@ def render_sidebar(api_key):
                 st.session_state.env_key_disabled = True
                 st.rerun()
         else:
-            st.markdown("**🔑 OpenAI API Key**")
+            st.markdown("**🔑 Groq API Key**")
             st.caption(
-                "Get a key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)"
+                "Get a key at [console.groq.com/keys](https://console.groq.com/keys)"
             )
             key_input = st.text_input(
                 "API Key", type="password", placeholder="sk-...",
@@ -700,7 +700,7 @@ def render_game_column(api_key):
     form (or game-over results with post-game AI analysis).
 
     Parameters:
-        api_key (str): OpenAI API key for AI hint and analysis features.
+        api_key (str): Groq API key for AI hint and analysis features.
 
     Returns:
         None
